@@ -1,211 +1,378 @@
 package com.example.simactivationapp;
-
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import android.Manifest;
+import java.util.ArrayList;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.provider.ContactsContract;
+import android.text.InputType;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.util.HashSet;
 
 public class MainActivity extends AppCompatActivity {
 
-    EditText phoneInput;
+    LinearLayout numbersContainer;
     Button validateBtn;
-    TextView resultText;
-    Button saveBtn;
-    TextView statusText;
-
-    Handler handler = new Handler();
+    HashSet<String> savedNumbers = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Bind UI
-        phoneInput = findViewById(R.id.phoneInput);
+        getWindow().setStatusBarColor(Color.parseColor("#111111"));
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+        numbersContainer = findViewById(R.id.numbersContainer);
         validateBtn = findViewById(R.id.validateBtn);
-        resultText = findViewById(R.id.resultText);
-        saveBtn = findViewById(R.id.saveBtn);
-        statusText = findViewById(R.id.statusText);
+        ImageButton contactsBtn = findViewById(R.id.contactsBtn);
+        ImageButton refreshBtn = findViewById(R.id.refreshBtn);
 
-        saveBtn.setVisibility(View.GONE);
-
-        // Permissions
         if (checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-
             requestPermissions(new String[]{
                     Manifest.permission.WRITE_CONTACTS,
                     Manifest.permission.READ_CONTACTS
             }, 1);
         }
 
-        // VALIDATE BUTTON
-        validateBtn.setOnClickListener(v -> {
+        contactsBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ContactsManagerActivity.class);
+            startActivity(intent);
+        });
+
+        refreshBtn.setOnClickListener(v -> {
+            savedNumbers.clear();
+            numbersContainer.removeAllViews();
+
+            // Re-add validate button
+            Button newValidateBtn = new Button(this);
+            newValidateBtn.setId(R.id.validateBtn);
+            newValidateBtn.setText("Validate All");
+            newValidateBtn.setTextColor(Color.WHITE);
+            newValidateBtn.setTextSize(16);
+            newValidateBtn.setTypeface(null, android.graphics.Typeface.BOLD);
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            p.setMargins(0, 16, 0, 0);
+            newValidateBtn.setLayoutParams(p);
+
+            GradientDrawable validateNormal = new GradientDrawable();
+            validateNormal.setColor(Color.parseColor("#E91E63"));
+            validateNormal.setCornerRadius(50);
+
+            GradientDrawable validatePressed = new GradientDrawable();
+            validatePressed.setColor(Color.parseColor("#880E4F"));
+            validatePressed.setCornerRadius(50);
+
+            newValidateBtn.setBackground(validateNormal);
+            newValidateBtn.setOnClickListener(btn -> validateAll());
+            newValidateBtn.setOnTouchListener((v2, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    newValidateBtn.setBackground(validatePressed);
+                } else if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
+                        event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                    newValidateBtn.setBackground(validateNormal);
+                }
+                return false;
+            });
+
+            numbersContainer.addView(newValidateBtn);
+            validateBtn = newValidateBtn;
+
+            addNumberBlock();
+            Toast.makeText(this, "Reset", Toast.LENGTH_SHORT).show();
+        });
+
+        addNumberBlock();
+
+        validateBtn.setOnClickListener(v -> validateAll());
+
+        GradientDrawable validateNormal = new GradientDrawable();
+        validateNormal.setColor(Color.parseColor("#E91E63"));
+        validateNormal.setCornerRadius(50);
+
+        GradientDrawable validatePressed = new GradientDrawable();
+        validatePressed.setColor(Color.parseColor("#880E4F"));
+        validatePressed.setCornerRadius(50);
+
+        validateBtn.setBackground(validateNormal);
+        validateBtn.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                validateBtn.setBackground(validatePressed);
+            } else if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
+                    event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                validateBtn.setBackground(validateNormal);
+            }
+            return false;
+        });
+    }
+
+    private void addNumberBlock() {
+        int count = numbersContainer.getChildCount();
+        if (count > 1) {
+            LinearLayout prevBlock = (LinearLayout) numbersContainer.getChildAt(count - 2);
+            View prevPlus = prevBlock.findViewWithTag("plusBtn");
+            if (prevPlus != null) prevPlus.setVisibility(View.GONE);
+        }
+
+        // Phone input
+        EditText phoneInput = new EditText(this);
+        phoneInput.setHint("Enter Phone Number");
+        phoneInput.setTextColor(Color.WHITE);
+        phoneInput.setHintTextColor(Color.parseColor("#AAAAAA"));
+        phoneInput.setInputType(InputType.TYPE_CLASS_PHONE);
+        phoneInput.setBackgroundColor(Color.parseColor("#1A1A1A"));
+        phoneInput.setPadding(24, 24, 24, 24);
+        phoneInput.setTag("phoneInput");
+
+        // Plus button
+        ImageButton plusBtn = new ImageButton(this);
+        plusBtn.setImageResource(android.R.drawable.ic_input_add);
+        plusBtn.setBackgroundColor(Color.TRANSPARENT);
+        plusBtn.setColorFilter(Color.parseColor("#E91E63"));
+        plusBtn.setTag("plusBtn");
+        plusBtn.setOnClickListener(v -> {
+            String phone = phoneInput.getText().toString().trim();
+            if (phone.isEmpty()) {
+                Toast.makeText(this, "Enter a number first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            addNumberBlock();
+        });
+
+        // Input row
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setTag("inputRow");
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        phoneInput.setLayoutParams(inputParams);
+        row.addView(phoneInput);
+        row.addView(plusBtn);
+
+        // Result box
+        TextView resultText = new TextView(this);
+        resultText.setTag("resultText");
+        resultText.setVisibility(View.GONE);
+        resultText.setTextSize(14);
+        resultText.setTextColor(Color.WHITE);
+        resultText.setGravity(Gravity.CENTER);
+        resultText.setPadding(24, 20, 24, 20);
+        LinearLayout.LayoutParams resultParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        resultParams.setMargins(0, 10, 0, 0);
+        resultText.setLayoutParams(resultParams);
+
+        // Save button
+        Button saveBtn = createStyledSaveBtn();
+
+        // Block
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams blockParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        blockParams.setMargins(0, 0, 0, 24);
+        block.setLayoutParams(blockParams);
+        // Result + Save in same row
+        LinearLayout resultRow = new LinearLayout(this);
+        resultRow.setOrientation(LinearLayout.HORIZONTAL);
+        resultRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams resultRowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        resultRowParams.setMargins(0, 10, 0, 0);
+        resultRow.setLayoutParams(resultRowParams);
+
+        LinearLayout.LayoutParams resultTextParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        resultText.setLayoutParams(resultTextParams);
+
+        resultRow.addView(resultText);
+        resultRow.addView(saveBtn);
+
+        block.addView(row);
+        block.addView(resultRow);
+
+        int insertIndex = numbersContainer.getChildCount() - 1;
+        numbersContainer.addView(block, insertIndex);
+    }
+
+    private void validateAll() {
+        int blockCount = numbersContainer.getChildCount() - 1;
+        if (blockCount == 0) return;
+
+        for (int i = 0; i < blockCount; i++) {
+            LinearLayout block = (LinearLayout) numbersContainer.getChildAt(i);
+            EditText phoneInput = (EditText) block.findViewWithTag("phoneInput");
+            TextView resultText = (TextView) block.findViewWithTag("resultText");
+            Button saveBtn = (Button) block.findViewWithTag("saveBtn");
 
             String phone = phoneInput.getText().toString().trim();
 
-            // Rule 1: 10 digits
-            if (phone.length() != 10) {
-                showInvalid();
-                return;
+            saveBtn.setVisibility(View.GONE);
+            saveBtn.setOnClickListener(null);
+            resultText.setVisibility(View.VISIBLE);
+
+            if (phone.isEmpty()) {
+                setResultBox(resultText, "Number is empty", false);
+                continue;
             }
 
-            // Rule 2: starts 6–9
-            char firstDigit = phone.charAt(0);
-            if (firstDigit < '6' || firstDigit > '9') {
-                showInvalid();
-                return;
+            if (phone.length() != 10 || phone.charAt(0) < '6' || phone.charAt(0) > '9') {
+                setResultBox(resultText, "Invalid Number", false);
+                continue;
             }
 
-            // Already in contacts
+            if (savedNumbers.contains(phone)) {
+                setResultBox(resultText, "Already Saved", true);
+                continue;
+            }
+
             if (isNumberInContacts(phone)) {
-
-                resultText.setText("Already in Contacts ✔");
-                resultText.setTextColor(Color.GREEN);
-                saveBtn.setVisibility(View.GONE);
-
-            } else {
-
-                resultText.setText("Valid Number ✔");
-                resultText.setTextColor(Color.GREEN);
-                saveBtn.setVisibility(View.VISIBLE);
+                setResultBox(resultText, "Already in Contacts", true);
+                continue;
             }
-        });
 
-        // SAVE CONTACT BUTTON
-        saveBtn.setOnClickListener(v -> {
-
-            String phone = phoneInput.getText().toString().trim();
-
-            EditText nameInput = new EditText(this);
-            nameInput.setHint("Enter Contact Name");
-
-            new AlertDialog.Builder(this)
-                    .setTitle("Save Contact")
-                    .setView(nameInput)
-                    .setPositiveButton("Save", (dialog, which) -> {
-
-                        String name = nameInput.getText().toString().trim();
-                        if (name.isEmpty()) name = "SIM User";
-
-                        saveContactDirect(name, phone);
-
-                        // 🔥 POPUP MESSAGE
-                        Toast.makeText(this, "Contact Saved ✔", Toast.LENGTH_SHORT).show();
-
-                        // 🔥 DELAYED UI UPDATE (3 sec)
-                        handler.postDelayed(() -> {
-
-                            resultText.setText("Saved Successfully ✔");
-                            resultText.setTextColor(Color.GREEN);
-
+            // Valid
+            setResultBox(resultText, "Valid Number", true);
+            saveBtn.setVisibility(View.VISIBLE);
+            saveBtn.setOnClickListener(v -> {
+                EditText nameInput = new EditText(this);
+                nameInput.setHint("Enter Contact Name");
+                new AlertDialog.Builder(this)
+                        .setTitle("Save Contact")
+                        .setView(nameInput)
+                        .setPositiveButton("Save", (dialog, which) -> {
+                            String name = nameInput.getText().toString().trim();
+                            if (name.isEmpty()) name = "SIM User";
+                            saveContactDirect(name, phone);
+                            savedNumbers.add(phone);
+                            Toast.makeText(this, "Contact Saved", Toast.LENGTH_SHORT).show();
+                            setResultBox(resultText, "Saved Successfully", true);
                             saveBtn.setVisibility(View.GONE);
-
-                        }, 3000);
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-        });
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
     }
 
-    // INVALID UI
-    private void showInvalid() {
-        resultText.setText("Invalid Number ❌");
-        resultText.setTextColor(Color.RED);
+    private void setResultBox(TextView resultText, String message, boolean valid) {
+        resultText.setText(message);
+        resultText.setTextColor(valid ? Color.parseColor("#4CAF50") : Color.parseColor("#F44336"));
+        resultText.setBackground(null);
+        resultText.setGravity(Gravity.START);
+    }
+
+    private Button createStyledSaveBtn() {
+        Button saveBtn = new Button(this);
+        saveBtn.setTag("saveBtn");
+        saveBtn.setText("Save");
+        saveBtn.setTextColor(Color.WHITE);
         saveBtn.setVisibility(View.GONE);
+
+        GradientDrawable normal = new GradientDrawable();
+        normal.setColor(Color.parseColor("#2196F3"));
+        normal.setCornerRadius(50);
+
+        GradientDrawable pressed = new GradientDrawable();
+        pressed.setColor(Color.parseColor("#1565C0"));
+        pressed.setCornerRadius(50);
+
+        saveBtn.setBackground(normal);
+
+        LinearLayout.LayoutParams saveBtnParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        saveBtnParams.setMargins(0, 12, 0, 0);
+        saveBtnParams.gravity = Gravity.END;
+        saveBtn.setLayoutParams(saveBtnParams);
+        saveBtn.setPadding(48, 24, 48, 24);
+
+        saveBtn.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                saveBtn.setBackground(pressed);
+            } else if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
+                    event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                saveBtn.setBackground(normal);
+            }
+            return false;
+        });
+        return saveBtn;
     }
 
-    // CONTACT CHECK (SAFE)
     private boolean isNumberInContacts(String phone) {
-
         try {
             Cursor cursor = getContentResolver().query(
                     ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                    null,
-                    null,
-                    null,
-                    null
-            );
-
+                    null, null, null, null);
             if (cursor == null) return false;
-
-            int index = cursor.getColumnIndex(
-                    ContactsContract.CommonDataKinds.Phone.NUMBER
-            );
-
+            int index = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
             while (cursor.moveToNext()) {
-
-                String contactNumber;
-
-                if (index != -1) {
-                    contactNumber = cursor.getString(index);
-                } else {
-                    contactNumber = cursor.getString(0);
-                }
-
+                String contactNumber = index != -1 ? cursor.getString(index) : cursor.getString(0);
                 if (contactNumber != null) {
                     contactNumber = contactNumber.replaceAll("\\s+", "");
-
                     if (contactNumber.contains(phone)) {
                         cursor.close();
                         return true;
                     }
                 }
             }
-
             cursor.close();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return false;
     }
 
-    // CONTACT SAVE (SAFE)
     private void saveContactDirect(String name, String phone) {
-
         try {
-            ContentValues values = new ContentValues();
+            ArrayList<android.content.ContentProviderOperation> ops = new ArrayList<>();
 
-            values.put(ContactsContract.RawContacts.ACCOUNT_TYPE, (String) null);
-            values.put(ContactsContract.RawContacts.ACCOUNT_NAME, (String) null);
+            ops.add(android.content.ContentProviderOperation
+                    .newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                    .build());
 
-            Uri uri = getContentResolver().insert(
-                    ContactsContract.RawContacts.CONTENT_URI,
-                    values
-            );
+            ops.add(android.content.ContentProviderOperation
+                    .newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
+                    .build());
 
-            if (uri == null) return;
+            ops.add(android.content.ContentProviderOperation
+                    .newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                    .withValue(ContactsContract.CommonDataKinds.Phone.TYPE,
+                            ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                    .build());
 
-            long rawContactId = android.content.ContentUris.parseId(uri);
-
-            ContentValues phoneValues = new ContentValues();
-            phoneValues.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
-            phoneValues.put(ContactsContract.Data.MIMETYPE,
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE);
-            phoneValues.put(ContactsContract.CommonDataKinds.Phone.NUMBER, phone);
-            phoneValues.put(ContactsContract.Data.DISPLAY_NAME, name);
-            phoneValues.put(ContactsContract.CommonDataKinds.Phone.TYPE,
-                    ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE);
-
-            getContentResolver().insert(
-                    ContactsContract.Data.CONTENT_URI,
-                    phoneValues
-            );
+            getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
 
         } catch (Exception e) {
             e.printStackTrace();

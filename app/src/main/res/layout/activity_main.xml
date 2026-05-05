@@ -3,75 +3,79 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:background="#000000">
+    android:fitsSystemWindows="true"
+    android:background="#0A0A0A">
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Dial Validator"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp"/>
 
-    <!-- Result Text -->
-    <TextView
-        android:id="@+id/resultText"
+    <!-- Top Bar -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="16sp"
-        android:gravity="center"
-        android:layout_marginBottom="20dp"
-        android:textColor="#FFFFFF"/>
+        android:layout_height="60dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="#111111">
 
-    <!-- Status Text -->
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:textColor="#FFFFFF"
-        android:layout_marginTop="10dp"/>
+        <!-- Title (left) -->
+        <TextView
+            android:id="@+id/titleText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Dial Validator"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"/>
 
-    <!-- Phone Input -->
-    <EditText
-        android:id="@+id/phoneInput"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:hint="Enter Phone Number"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#AAAAAA"
-        android:inputType="phone"
-        android:background="#1A1A1A"
-        android:padding="12dp"/>
+        <!-- Refresh Button -->
+        <ImageButton
+            android:id="@+id/refreshBtn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="#2A2A2A"
+            android:padding="6dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Refresh"/>
 
-    <!-- Validate Button -->
-    <Button
-        android:id="@+id/validateBtn"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:text="Validate Number"
-        android:layout_marginTop="20dp"
-        android:backgroundTint="#E91E63"
-        android:textColor="#FFFFFF"/>
+        <!-- Contacts Button (right) -->
+        <ImageButton
+            android:id="@+id/contactsBtn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_myplaces"
+            android:background="#2A2A2A"
+            android:padding="6dp"
+            android:contentDescription="Contacts"/>
 
-    <!-- Save Button -->
-    <Button
-        android:id="@+id/saveBtn"
+    </LinearLayout>
+
+    <!-- Scrollable content -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:text="Save to Contacts"
-        android:layout_marginTop="15dp"
-        android:backgroundTint="#2196F3"
-        android:textColor="#FFFFFF"
-        android:visibility="gone"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:id="@+id/numbersContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/validateBtn"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="Validate All"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#E91E63"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="16sp"/>
+
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>
